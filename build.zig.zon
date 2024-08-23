@@ -1,0 +1,30 @@
+.{
+    .name = "workplace",
+    .version = "0.0.0",
+    .minimum_zig_version = "0.14.0",
+
+    // This field is optional.
+    // Each dependency must either provide a `url` and `hash`, or a `path`.
+    // `zig build --fetch` can be used to fetch all dependencies of a package, recursively.
+    // Once all dependencies are fetched, `zig build` no longer requires
+    // internet connectivity.
+    .dependencies = .{
+        .clap = .{
+            .url = "git+https://github.com/Hejsil/zig-clap#f0a281ffe91fb64f116dcb04c34cecef70e8c79c",
+            .hash = "122026b67ce2974e3b2fcfd3e2e164b73ee60c55d13f3f60ca7db6c316c8f22a6bf8",
+        },
+    },
+    .paths = .{
+        // This makes *all* files, recursively, included in this package. It is generally
+        // better to explicitly list the files and directories instead, to insure that
+        // fetching from tarballs, file system paths, and version control all result
+        // in the same contents hash.
+        "",
+        // For example...
+        //"build.zig",
+        //"build.zig.zon",
+        //"src",
+        //"LICENSE",
+        //"README.md",
+    },
+}
