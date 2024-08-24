@@ -3,7 +3,7 @@ const util = @import("../util.zig");
 const Self = @This();
 
 path: []const u8,
-socket: ?std.posix.socket_t,
+stream: ?std.net.Stream,
 
 pub fn init( path: []const u8 ) !Self {
 	if ( path.len > 108 )
@@ -11,7 +11,7 @@ pub fn init( path: []const u8 ) !Self {
 
 	return .{
 		.path = path,
-		.socket = null
+		.stream = null
 	};
 }
 
@@ -20,91 +20,60 @@ pub fn deinit( self: *Self ) void {
 }
 
 pub fn connect( self: *Self ) !void {
-	const sock = try std.posix.socket(std.posix.AF.UNIX, std.posix.SOCK.STREAM | std.posix.SOCK.NONBLOCK, std.posix.PROT.NONE);
-	errdefer std.posix.close( sock );
-
-	var addr = std.posix.sockaddr.un{ .path = undefined };
-	@memcpy( addr.path[0..self.path.len], self.path );
-	try std.posix.connect( sock, @ptrCast(&addr), @sizeOf(@TypeOf(addr)) );
-	self.socket = sock;
+	self.stream = try std.net.connectUnixSocket( self.path );
 }
 
 pub fn close( self: *Self ) void {
-	if ( self.socket ) |sock| {
-		std.posix.close( sock );
-		self.socket = null;
+	if ( self.stream ) |stream| {
+		stream.close();
+		self.stream = null;
 	}
 }
 
 pub fn send( self: *Self, buf: []const u8 ) !void {
-	if ( self.socket == null ) {
+	if ( self.stream == null ) {
 		return error.NotConnected;
 	}
+
 	// this may fail with `error.WouldBlock`, but our messages should be fairly small so we should be good
-	_ = try std.posix.send( self.socket orelse unreachable, buf, 0 );
+	try self.stream.?.writeAll( buf );
 }
 
 pub fn wait( self: *Self, timeout: f32 ) !void {
-	if ( self.socket == null ) {
+	if ( self.stream == null ) {
 		return error.NotConnected;
 	}
 
 	var fds: [2]std.os.linux.pollfd = undefined;
-	fds[0].fd = self.socket orelse unreachable;
+	fds[0].fd = self.stream.?.handle;
 	fds[0].events = std.os.linux.POLL.RDNORM;
 	fds[0].revents = 0;
 	_ = try std.posix.poll( fds[0..1], @intFromFloat( timeout * 1000 ) );
 }
 
 pub fn read( self: *Self, buffer: []u8 ) ![]const u8 {
-	if ( self.socket == null ) {
+	if ( self.stream == null ) {
 		return error.NotConnected;
 	}
 
-	var offset: usize = 0;
-	while ( true ) {
-		const chunk = std.posix.recv( self.socket orelse unreachable, buffer[offset..], 0 ) catch |err| {
-			if ( err == error.WouldBlock ) {
-				break;
-			}
-			// its an actual error
-			return err;
-		};
-		offset += chunk;
-	}
+	var reader = self.stream.?.reader();
+	const res = try reader.readUntilDelimiter( buffer, '\n' );
+	_ = try reader.readByte(); // consume `\n`
 
-	if ( offset == 0 ) {
-		return buffer[0..0];
-	}
-
-	return buffer[0..(offset - 1)];
+	return res;
 }
 
 pub fn readAlloc( self: *Self, allocator: std.mem.Allocator ) ![]const u8 {
-	if ( self.socket == null ) {
+	if ( self.stream == null ) {
 		return error.NotConnected;
 	}
 
-	var result = std.ArrayList(u8).init( allocator );
+	var result = try std.ArrayList(u8).initCapacity( allocator, 256 );
 	errdefer result.deinit();
-	try result.ensureTotalCapacity( 256 );
 
-	var buffer: [1024]u8 = undefined;
-	while ( true ) {
-		const chunk = std.posix.recv( self.socket orelse unreachable, &buffer, 0 ) catch |err| {
-			if ( err == error.WouldBlock ) {
-				break;
-			}
-			// its an actual error
-			return err;
-		};
-
-		if ( chunk == 0 ) {
-			break;
-		}
-
-		try result.appendSlice( buffer[0..chunk] );
-	}
+	var reader = self.stream.?.reader();
+	try reader.streamUntilDelimiter( result.writer(), '\n', null );
+	_ = try reader.readByte(); // consume `\n`
 
 	result.shrinkAndFree( result.items.len );
 	return result.items;

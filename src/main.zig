@@ -20,9 +20,14 @@ const helpContents =
 	\\
 ;
 
+pub var allocator: std.mem.Allocator = undefined;
+pub var hypr: Hyprland = undefined;
+
+
 pub fn main() !void {
 	var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 	defer _ = gpa.deinit();
+	allocator = gpa.allocator();
 
 	const params = comptime clap.parseParamsComptime( helpContents );
 
@@ -36,6 +41,7 @@ pub fn main() !void {
 		return;
 	}
 
+
 	std.log.info( "workplaced v{?} build with Zig v{s}", .{ @import("consts").version, builtin.zig_version_string } );
 
 	// get the hyprland instance signature (favoriting the one from cli)
@@ -46,8 +52,16 @@ pub fn main() !void {
 	std.log.info( "found Hyprland signature ({s})", .{ sig } );
 
 	// create API instance
-	var hypr = try Hyprland.init( gpa.allocator(), sig );
+	hypr = try Hyprland.init( allocator, eventHandler, sig );
 	defer hypr.deinit();
 
 	try hypr.listen();
+}
+
+fn eventHandler( evt: Hyprland.Event ) void {
+	std.log.info( "received event: {?}", .{ evt } );
+	if ( evt == .changefloatingmode ) {
+		const res = hypr.getWindows() catch unreachable;
+		allocator.free( res );
+	}
 }
