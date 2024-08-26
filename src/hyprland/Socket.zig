@@ -57,10 +57,7 @@ pub fn read( self: *Self, buffer: []u8 ) ![]const u8 {
 	}
 
 	var reader = self.stream.?.reader();
-	const res = try reader.readUntilDelimiter( buffer, '\n' );
-	_ = try reader.readByte(); // consume `\n`
-
-	return res;
+	return reader.readUntilDelimiter( buffer, '\n' );
 }
 
 pub fn readAlloc( self: *Self, allocator: std.mem.Allocator ) ![]const u8 {
@@ -73,7 +70,6 @@ pub fn readAlloc( self: *Self, allocator: std.mem.Allocator ) ![]const u8 {
 
 	var reader = self.stream.?.reader();
 	try reader.streamUntilDelimiter( result.writer(), '\n', null );
-	_ = try reader.readByte(); // consume `\n`
 
 	result.shrinkAndFree( result.items.len );
 	return result.items;
@@ -92,7 +88,7 @@ pub fn execute( self: *Self, comptime command: []const u8, args: []const u8, all
 	var backBuffer: [256]u8 = undefined;
 	var cmdBuffer = std.ArrayListUnmanaged(u8).initBuffer( &backBuffer );
 	var writer = cmdBuffer.fixedWriter();
-	try writer.print( "j/{s}", .{ command } );
+	try writer.print( "j/" ++ command, .{ } );
 	if ( args.len > 1 ) {
 		try writer.print( " {s}", .{ args } );
 	}
