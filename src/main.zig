@@ -59,9 +59,9 @@ pub fn main() !void {
 }
 
 fn eventHandler( evt: Hyprland.Event ) void {
-	std.log.info( "received event: {?}", .{ evt } );
+	std.log.debug( "received event: {?}", .{ evt } );
 	if ( evt == .changefloatingmode ) {
-		const res = hypr.getWindows() catch unreachable;
-		allocator.free( res );
+		// const res = hypr.getWindows() catch unreachable;
+		// allocator.free( res );
 	}
 }
