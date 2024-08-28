@@ -22,6 +22,9 @@ const helpContents =
 
 pub var allocator: std.mem.Allocator = undefined;
 pub var hypr: Hyprland = undefined;
+pub const std_options: std.Options = .{
+	.logFn = log,
+};
 
 
 pub fn main() !void {
@@ -55,11 +58,33 @@ pub fn main() !void {
 	hypr = try Hyprland.init( allocator, eventHandler, sig );
 	defer hypr.deinit();
 
-	try hypr.listen();
+	while ( true ) {
+		// handle incoming events
+		try hypr.tick();
+		// handle controller requests
+
+	}
+}
+
+pub fn log( comptime message_level: std.log.Level, comptime scope: @Type(.EnumLiteral), comptime format: []const u8, args: anytype ) void {
+	const level_txt = comptime message_level.asText();
+	const prefix2 = if (scope == .default) ": " else "(" ++ @tagName(scope) ++ "): ";
+	const stderr = std.io.getStdErr().writer();
+	var bw = std.io.bufferedWriter(stderr);
+	const writer = bw.writer();
+
+	// const now = std.time.Instant.now() catch return;
+	// std.time.
+
+	std.debug.lockStdErr();
+	defer std.debug.unlockStdErr();
+	nosuspend {
+		writer.print( level_txt ++ prefix2 ++ format ++ "\n", args ) catch return;
+		bw.flush() catch return;
+	}
 }
 
 fn eventHandler( evt: Hyprland.Event ) void {
-	std.log.debug( "received event: {?}", .{ evt } );
 	switch ( evt ) {
 		.changefloatingmode => {
 			// const res = hypr.getWindows() catch unreachable;
@@ -72,5 +97,4 @@ fn eventHandler( evt: Hyprland.Event ) void {
 		},
 		else => { },
 	}
-
 }

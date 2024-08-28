@@ -5,7 +5,7 @@ const Window = @import("Window.zig");
 const eventZig = @import("event.zig");
 pub const Event = eventZig.Event;
 pub const EventHandler = eventZig.EventHandler;
-
+const Logger = std.log.scoped(.Hyprland);
 
 allocator: std.mem.Allocator,
 signature: []const u8,
@@ -41,24 +41,28 @@ pub fn deinit( self: *Self ) void {
 	self.allocator.free( self.recvSock.path );
 }
 
-pub fn listen( self: *Self ) !void {
+pub fn tick( self: *Self ) !void {
 	var buffer: [2048]u8 = undefined;
 	while ( true ) {
 		const event = try self.recvSock.read( &buffer );
-		if ( event.len != 0 ) {
-			const evt = Event.parse( event ) catch |err| {
-				std.log.err( "Failed to parse event string: `{s}` -> {}", .{ event, err } );
-				return;
-			};
-			self.eventHandler( evt );
+		if ( event.len == 0 ) {
+			break;
 		}
+
+		const evt = Event.parse( event ) catch |err| {
+			Logger.err( "Failed to parse event string: `{s}` -> {}", .{ event, err } );
+			return;
+		};
+		Logger.debug( "Received event: {?}", .{ evt } );
+
+		self.eventHandler( evt );
 	}
 }
 
 pub fn getWindows( self: *Self ) ![]Window {
 	const res = try self.sendSock.execute( "clients", "", self.allocator );
 	defer self.allocator.free( res );
-	std.log.debug( "{s}", .{ res } );
+	Logger.debug( "{s}", .{ res } );
 	const parsed = try std.json.parseFromSlice( []Window, self.allocator, res, .{ } );
 	defer parsed.deinit();
 
