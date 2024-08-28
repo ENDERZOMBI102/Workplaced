@@ -60,8 +60,17 @@ pub fn main() !void {
 
 fn eventHandler( evt: Hyprland.Event ) void {
 	std.log.debug( "received event: {?}", .{ evt } );
-	if ( evt == .changefloatingmode ) {
-		// const res = hypr.getWindows() catch unreachable;
-		// allocator.free( res );
+	switch ( evt ) {
+		.changefloatingmode => {
+			// const res = hypr.getWindows() catch unreachable;
+			// allocator.free( res );
+		},
+		.activewindow => |act| {
+			if ( act.class.len > 0 and act.class[0] == 'R' ) {
+				std.process.exit( 0 );
+			}
+		},
+		else => { },
 	}
+
 }
