@@ -36,7 +36,7 @@ pub fn main() !void {
 
 	const params = comptime clap.parseParamsComptime( helpContents );
 
-	var res = try clap.parse(clap.Help, &params, clap.parsers.default, .{ .allocator = gpa.allocator() });
+	var res = try clap.parse(clap.Help, &params, clap.parsers.default, .{ .allocator = allocator });
 	defer res.deinit();
 
 	if ( res.args.help != 0 ) {
@@ -55,8 +55,10 @@ pub fn main() !void {
 	};
 	std.log.info( "found Hyprland signature ({s})", .{ sig } );
 
+	const xdgRuntimeDir = std.posix.getenv( "XDG_RUNTIME_DIR" ) orelse unreachable;
+
 	// create API instance
-	hypr = try Hyprland.init( allocator, eventHandler, sig );
+	hypr = try Hyprland.init( allocator, eventHandler, xdgRuntimeDir, sig );
 	defer hypr.deinit();
 
 	while ( true ) {

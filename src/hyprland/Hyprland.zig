@@ -13,14 +13,12 @@ recvSock: Socket,
 sendSock: Socket,
 eventHandler: EventHandler,
 
-pub fn init( allocator: std.mem.Allocator, handler: EventHandler, sig: []const u8 ) !Self {
-	const xdgRuntime = std.posix.getenv( "XDG_RUNTIME_DIR" ) orelse unreachable;
-
+pub fn init( allocator: std.mem.Allocator, handler: EventHandler, xdgRuntimeDir: []const u8, sig: []const u8 ) !Self {
 	// create sockets
-	const eventPath = try std.fmt.allocPrint( allocator, "{s}/hypr/{s}/.socket2.sock", .{ xdgRuntime, sig } );
+	const eventPath = try std.fmt.allocPrint( allocator, "{s}/hypr/{s}/.socket2.sock", .{ xdgRuntimeDir, sig } );
 	var eventSock = try Socket.init( eventPath );
 	try eventSock.connect();  // must connect
-	const commaPath = try std.fmt.allocPrint( allocator, "{s}/hypr/{s}/.socket.sock" , .{ xdgRuntime, sig } );
+	const commaPath = try std.fmt.allocPrint( allocator, "{s}/hypr/{s}/.socket.sock" , .{ xdgRuntimeDir, sig } );
 	const commaSock = try Socket.init( commaPath );
 
 	// load env info
