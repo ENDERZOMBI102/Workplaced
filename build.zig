@@ -11,6 +11,7 @@ pub fn build(b: *std.Build) !void {
 
 	// dependencies
 	const clap = b.dependency("clap", .{});
+	const zdt = b.dependency("zig-datetime", .{});
 
     const daemon = b.addExecutable(.{
         .name = "workplaced",
@@ -19,6 +20,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 	daemon.root_module.addImport("clap", clap.module("clap"));
+	daemon.root_module.addImport("datetime", zdt.module("zig-datetime"));
 	daemon.root_module.addOptions("consts", consts);
 
     const ctl = b.addExecutable(.{

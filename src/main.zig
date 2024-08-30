@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin  = @import("builtin");
 const clap = @import("clap");
+const zdt = @import("datetime");
 const Hyprland = @import("hyprland/Hyprland.zig");
 
 
@@ -23,7 +24,8 @@ const helpContents =
 pub var allocator: std.mem.Allocator = undefined;
 pub var hypr: Hyprland = undefined;
 pub const std_options: std.Options = .{
-	.logFn = log,
+	.logFn = log,  // better log formatting
+	.http_disable_tls = true,  // we do not make http requests
 };
 
 
@@ -43,7 +45,6 @@ pub fn main() !void {
 		_ = try writer.write( helpContents );
 		return;
 	}
-
 
 	std.log.info( "workplaced v{?} build with Zig v{s}", .{ @import("consts").version, builtin.zig_version_string } );
 
@@ -66,20 +67,28 @@ pub fn main() !void {
 	}
 }
 
-pub fn log( comptime message_level: std.log.Level, comptime scope: @Type(.EnumLiteral), comptime format: []const u8, args: anytype ) void {
-	const level_txt = comptime message_level.asText();
-	const prefix2 = if (scope == .default) ": " else "(" ++ @tagName(scope) ++ "): ";
+pub fn log( comptime level: std.log.Level, comptime scope: @Type(.EnumLiteral), comptime format: []const u8, args: anytype ) void {
+	const levelText = switch ( level ) {
+		.err => "ERROR",
+		.warn => "WARN",
+		.info => "INFO",
+		.debug => "DEBUG",
+	};
+	// name
+	const name = if (scope == .default) "main" else @tagName(scope);
+	// time
+	const now = zdt.datetime.Time.now();
+
+	// writer
 	const stderr = std.io.getStdErr().writer();
 	var bw = std.io.bufferedWriter(stderr);
 	const writer = bw.writer();
 
-	// const now = std.time.Instant.now() catch return;
-	// std.time.
-
+	// write out
 	std.debug.lockStdErr();
 	defer std.debug.unlockStdErr();
 	nosuspend {
-		writer.print( level_txt ++ prefix2 ++ format ++ "\n", args ) catch return;
+		writer.print( "[{}:{}:{}] [" ++ name ++ "/" ++ levelText ++ "]: " ++ format ++ "\n", .{ now.hour, now.minute, now.second } ++ args ) catch return;
 		bw.flush() catch return;
 	}
 }
